@@ -140,11 +140,11 @@ x = x.reshape((28, 28))
 plt.imshow(x)
 
 """## 3. `torch.utils.data.`**`Dataloader`**"""
-
+batch_size = 100
 
 # Creates an iterable object that iterates over batches of specific batch size.
-trainloader = DataLoader(trainset, batch_size=100, shuffle=True)
-testloader = DataLoader(testset, batch_size=100)
+trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
+testloader = DataLoader(testset, batch_size=batch_size)
 
 """# Building the network!
 
@@ -186,12 +186,15 @@ class FullyConnected(torch.nn.Module):
         return output
 
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+
 model = FullyConnected(784, 10)
-model.cuda()
+model.to(device)
 
 
 lossfun = nn.CrossEntropyLoss()
-lossfun.cuda()
+lossfun.to(device)
 
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -208,8 +211,8 @@ for epoch in range(num_epochs):  # loop over the testdata
         inputs, labels = data
 
         # move the data to GPU
-        inputs = inputs.cuda()
-        labels = labels.cuda()
+        inputs = inputs.to(device)
+        labels = labels.to(device)
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -222,8 +225,8 @@ for epoch in range(num_epochs):  # loop over the testdata
 
         optimizer.step()
 
-        running_acc += (torch.sum(outputs.argmax(dim=1)
-                                  == labels).item() / 120)
+        running_acc += torch.sum(outputs.argmax(dim=1)
+                                 == labels).item() / batch_size
 
         # print statistics
         running_loss += loss.item()
@@ -235,11 +238,11 @@ for epoch in range(num_epochs):  # loop over the testdata
                     inputs, labels = data
 
                     # move the data to GPU
-                    inputs = inputs.cuda()
-                    labels = labels.cuda()
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
 
                     val_acc.append(
-                        torch.sum(outputs.argmax(dim=1) == labels).item() / 120)
+                        torch.sum(outputs.argmax(dim=1) == labels).item() / batch_size)
 
                 val_acc = sum(val_acc) / len(val_acc)
 
@@ -253,22 +256,23 @@ print('Finished Training')
 count_right = 0
 count_wrong = 0
 total = 0
+
 for i, data in enumerate(testloader, 0):
     # get the inputs; data is a list of [inputs, labels]
     inputs, labels = data
 
     # move the data to GPU
-    inputs = inputs.cuda()
-    # labels = labels.cuda()
+    inputs = inputs.to(device)
+    # labels = labels.to(device)
 
     # get a guess
     outputs = model(inputs)
-    
+
     outputs = outputs.detach().cpu().numpy()
     labels = labels.numpy()
 
     for j in range(len(outputs)):
-        
+
         guess = np.where(outputs[j] == np.amax(outputs[j]))[0][0]
         correct = labels[j]
         accurate = guess == correct
@@ -285,4 +289,5 @@ for i, data in enumerate(testloader, 0):
         # print('Our Guess: {}, Correct Classification: {}\n'.format(guess, correct), accurate)
         total += 1
 
-print('WE got {} out of {} ({}%)'.format(count_right, total, 100 * count_right / total))
+print('WE got {} out of {} ({}%)'.format(
+    count_right, total, 100 * count_right / total))
